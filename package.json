@@ -1,0 +1,19 @@
+{
+  "name": "3d-rubiks-cube",
+  "version": "1.0.0",
+  "description": "Interactive 3D Rubik's Cube web app with a layer-by-layer solver, hints and step-by-step explanations. Vanilla ES modules + Three.js, no build step.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx -y http-server -p 8080 -c-1 .",
+    "test": "node --test test/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

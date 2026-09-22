@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive 3D Rubik's Cube: scramble, solve by hand, get hints, or watch a layer-by-layer solution explained stage by stage.">
+<meta name="color-scheme" content="light">
+<title>Rubik's Cube Challenge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23141414%27/%3E%3Cg%3E%3Crect x=%273%27 y=%273%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%23ffd500%27/%3E%3Crect x=%2712%27 y=%273%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%23ff6a00%27/%3E%3Crect x=%2721%27 y=%273%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%230051ba%27/%3E%3Crect x=%273%27 y=%2712%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%2300a651%27/%3E%3Crect x=%2712%27 y=%2712%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%23f4f4f4%27/%3E%3Crect x=%2721%27 y=%2712%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%23c8102e%27/%3E%3Crect x=%273%27 y=%2721%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%230051ba%27/%3E%3Crect x=%2712%27 y=%2721%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%23ffd500%27/%3E%3Crect x=%2721%27 y=%2721%27 width=%278%27 height=%278%27 rx=%272%27 fill=%27%23ff6a00%27/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="brand"><h1>Rubik's Cube Challenge</h1><p>Drag a sticker to turn a layer · drag the background to look around · wheel to zoom</p></div>
+<div id="hud">
+  <div class="stat"><b id="hTime">0:00</b><span>time</span></div>
+  <div class="stat"><b id="hMoves">0</b><span>moves</span></div>
+  <div class="stat"><b id="hHints">0</b><span>hints</span></div>
+</div>
+<div id="view" title="Rotate the view">
+  <button class="sp"></button><button data-v="up">▲</button><button class="sp"></button>
+  <button data-v="left">◀</button><button data-v="home">⌂</button><button data-v="right">▶</button>
+  <button class="sp"></button><button data-v="down">▼</button><button class="sp"></button>
+</div>
+
+<div id="ui">
+  <h2>Challenge <button id="newGame">New challenge</button></h2>
+  <div class="row">
+    <button id="scramble">Scramble</button>
+    <button id="reset">Reset cube</button>
+  </div>
+  <h2>Turn a face <button id="helpBtn">Help ?</button></h2>
+  <div class="grid" id="moves"></div>
+  <h2>Help me</h2>
+  <div class="row">
+    <button id="hintBtn">Hint: next move</button>
+    <button id="applyHint" disabled>Apply hint</button>
+  </div>
+  <div id="hint"></div>
+  <div class="row3">
+    <button id="solve" class="primary">Solve all</button>
+    <button id="step" disabled>Step</button>
+    <button id="pause" disabled>Pause</button>
+  </div>
+  <label style="margin-top:8px">Fast <input id="speed" type="range" min="80" max="1200" value="450"> Slow</label>
+  <div id="status">Ready.</div>
+  <h2>Solution explained <button id="explain">Explain</button></h2>
+  <div id="sol"><p class="stage" style="color:var(--muted);font-size:12px">Press <b>Explain</b> to see how the cube would be solved from its current state, stage by stage. Press <b>Solve all</b> to watch it.</p></div>
+  <h2>History</h2>
+  <div id="log"></div>
+</div>
+
+<dialog id="startDlg">
+  <h1>Ready for a challenge?</h1>
+  <p>The cube gets scrambled. Solve it as fast as you can with as few moves as possible. Use hints if you get stuck, each one counts.</p>
+  <div class="row3">
+    <button data-n="4">Easy<small>4 moves</small></button>
+    <button data-n="10">Medium<small>10 moves</small></button>
+    <button data-n="20" class="primary">Hard<small>20 moves</small></button>
+  </div>
+  <div class="row"><button id="freePlay">Free play</button><button id="startHelp">How to play</button></div>
+</dialog>
+
+<dialog id="winDlg">
+  <h1>🎉 Solved!</h1>
+  <p id="winText"></p>
+  <table id="winStats"></table>
+  <div class="row"><button id="winAgain" class="primary">Play again</button><button id="winClose">Keep playing</button></div>
+</dialog>
+
+<dialog id="helpDlg">
+  <h1>How to play</h1>
+  <p><b>Look around.</b> Drag the gray background to orbit, scroll to zoom, or use the arrow buttons bottom‑left.</p>
+  <p><b>Turn a layer.</b> Drag a sticker in the direction you want that layer to move, or use the buttons.</p>
+  <p><b>Notation.</b> <kbd>U</kbd> up, <kbd>D</kbd> down, <kbd>L</kbd> left, <kbd>R</kbd> right, <kbd>F</kbd> front, <kbd>B</kbd> back. Plain = clockwise looking at that face, <kbd>'</kbd> = counter‑clockwise, <kbd>2</kbd> = half turn. Yellow is up, white is down, orange front.</p>
+  <p><b>Stuck?</b> <b>Hint</b> shows the next move and which stage of the beginner method you are in. <b>Apply hint</b> performs it. <b>Solve all</b> plays the whole solution; <b>Step</b> plays it one move at a time. <b>Explain</b> lists every stage with its moves.</p>
+  <p><b>Beginner method</b> (layer by layer):</p>
+  <ul>
+    <li>White cross on the bottom</li><li>White corners (first layer)</li><li>Middle layer edges</li>
+    <li>Yellow cross, then yellow face (orientation)</li><li>Position top corners, then top edges</li>
+  </ul>
+  <button class="close" onclick="this.closest('dialog').close()">Got it</button>
+</dialog>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

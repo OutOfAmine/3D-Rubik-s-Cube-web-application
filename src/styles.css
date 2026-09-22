@@ -1,0 +1,64 @@
+  :root{
+    --bg:#e9ebee; --panel:rgba(255,255,255,.84); --ink:#1c1e21; --muted:#6b7280;
+    --line:#d9dce1; --accent:#1c1e21; --accent-ink:#fff; --chip:#f1f3f5; --chip-done:#c8f7d4; --chip-now:#ffd500; --good:#118a3c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+  canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #brand{position:fixed;top:16px;left:16px;pointer-events:none}
+  #brand h1{margin:0;font-size:18px;font-weight:600}
+  #brand p{margin:2px 0 0;color:var(--muted);font-size:12px}
+  #hud{position:fixed;left:16px;top:70px;display:flex;gap:8px;flex-wrap:wrap}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 12px;min-width:84px}
+  .stat b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  #view{position:fixed;left:16px;bottom:16px;display:grid;grid-template-columns:repeat(3,40px);gap:4px}
+  #view button{padding:8px 0}
+  #view .sp{visibility:hidden}
+  #ui{position:fixed;top:16px;right:16px;width:320px;max-height:calc(100% - 32px);overflow:auto;
+    background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:16px;
+    padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+  h2{margin:14px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  h2:first-child{margin-top:0}
+  h2 button{font-size:11px;padding:2px 8px;font-weight:500}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  button{font:inherit;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;
+    padding:8px 0;cursor:pointer;font-weight:600;transition:transform .08s,background .15s}
+  button:hover{background:#f7f8fa}
+  button:active{transform:scale(.96)}
+  button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  button.primary:hover{background:#333}
+  button:disabled{opacity:.45;cursor:default;transform:none}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px}
+  label{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  #status{font-size:12px;color:var(--muted);min-height:16px;margin-top:8px}
+  #hint{margin-top:6px;font-size:13px;padding:10px;border-radius:10px;background:#fff8d6;display:none}
+  #hint b.mv{font:700 18px ui-monospace,Menlo,Consolas,monospace;margin-right:6px}
+  .stage{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px;background:#fff}
+  .stage h3{margin:0;font-size:13px;display:flex;justify-content:space-between}
+  .stage h3 small{color:var(--muted);font-weight:500}
+  .stage p{margin:4px 0 6px;font-size:12px;color:var(--muted)}
+  .stage.active{border-color:var(--chip-now);box-shadow:0 0 0 2px #ffd50055}
+  .chips{display:flex;flex-wrap:wrap;gap:4px}
+  .chip{background:var(--chip);border-radius:6px;padding:2px 6px;font:600 12px/1.4 ui-monospace,Menlo,Consolas,monospace}
+  .chip.done{background:var(--chip-done)} .chip.now{background:var(--chip-now)}
+  #log{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--muted);word-break:break-word;min-height:16px}
+  dialog{border:0;border-radius:18px;padding:24px 26px;max-width:440px;width:calc(100% - 32px);box-shadow:0 30px 80px rgba(0,0,0,.25)}
+  dialog::backdrop{background:rgba(20,22,26,.45);backdrop-filter:blur(3px)}
+  dialog h1{margin:0 0 6px;font-size:22px} dialog p{margin:6px 0;color:var(--muted)}
+  dialog .row3 button{padding:12px 0}
+  dialog .row3 button small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+  dialog .primary small{color:#ccc}
+  dialog table{width:100%;font-size:13px;margin:10px 0;border-collapse:collapse}
+  dialog td{padding:4px 0;border-bottom:1px solid var(--line)} dialog td:last-child{text-align:right;font-weight:600}
+  dialog ul{padding-left:18px;margin:6px 0} dialog li{margin:3px 0}
+  kbd{font:600 12px ui-monospace,Menlo,Consolas,monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+  .close{margin-top:14px;width:100%}
+  @media (max-width:640px){
+    #ui{top:auto;bottom:0;right:0;left:0;width:auto;max-height:50%;border-radius:16px 16px 0 0}
+    #view{bottom:calc(50% + 12px)}
+    #hud{top:64px}
+  }
