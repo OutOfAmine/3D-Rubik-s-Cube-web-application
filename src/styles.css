@@ -31,7 +31,7 @@ button {
   border-radius: 14px; padding: 10px 14px; cursor: pointer; transition: transform .1s, box-shadow .15s, background .15s;
   box-shadow: 0 2px 0 rgba(27, 29, 42, .06);
 }
-button:hover { background: #fafbff; }
+button:hover:not(.cta):not(.seg button) { background: #fafbff; }
 button:active { transform: translateY(1px) scale(.98); box-shadow: none; }
 button:disabled { opacity: .4; cursor: default; transform: none; }
 button:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 40%, transparent); outline-offset: 2px; }
@@ -40,7 +40,7 @@ button:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 40%, t
   background-size: 200% 200%; box-shadow: 0 8px 24px rgba(91, 91, 255, .35); letter-spacing: .01em;
   animation: shimmer 6s ease infinite;
 }
-.cta:hover { background-position: 100% 50%; }
+.cta:hover { background-position: 100% 50%; filter: brightness(1.08); }
 .cta.small { padding: 8px 14px; box-shadow: 0 4px 14px rgba(91, 91, 255, .3); }
 @keyframes shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 .icon { width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-weight: 900; }
@@ -98,7 +98,8 @@ button:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 40%, t
 .primary .cta { padding: 14px 28px; font-size: 18px; border-radius: 999px; }
 .seg { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px; backdrop-filter: blur(10px); }
 .seg button { border: 0; background: transparent; box-shadow: none; padding: 8px 12px; border-radius: 999px; font-size: 13px; color: var(--muted); }
-.seg button.on { background: var(--ink); color: #fff; }
+.seg button:hover { color: var(--ink); }
+.seg button.on, .seg button.on:hover { background: var(--ink); color: #fff; }
 .actions { display: flex; gap: 6px; }
 .actions button {
   min-width: 64px; padding: 8px 6px; font-size: 12px; font-weight: 800; display: grid; gap: 2px; justify-items: center;
