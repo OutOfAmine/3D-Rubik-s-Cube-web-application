@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "npx -y http-server -p 8080 -c-1 .",
-    "test": "node --test test/"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
