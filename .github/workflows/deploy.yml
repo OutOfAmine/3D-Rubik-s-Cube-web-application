@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir -p dist
           cp index.html dist/
-          cp -r src docs robots.txt sitemap.xml dist/
+          cp -r src docs robots.txt sitemap.xml google*.html dist/
           touch dist/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
