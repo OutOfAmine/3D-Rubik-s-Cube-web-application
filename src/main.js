@@ -12,7 +12,7 @@ const $ = id => document.getElementById(id);
 const canvas = $('c');
 
 // --- renderer / scene / camera ---
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); // transparent: the CSS gradient shows through
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -20,14 +20,14 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe9ebee);
 scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 
 const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
 const HOME = new THREE.Vector3(4.8, 4.4, 6.4);
 camera.position.copy(HOME);
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true; controls.minDistance = 5; controls.maxDistance = 18;
+controls.enableDamping = true; controls.minDistance = 5; controls.maxDistance = 18; controls.enablePan = false;
+controls.autoRotate = true; controls.autoRotateSpeed = 1.2; // slow idle spin until the player touches the cube
 
 scene.add(new THREE.HemisphereLight(0xffffff, 0xb8c0c8, 0.55));
 const sun = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -78,7 +78,7 @@ const game = {active:false, t0:null, moves:0, hints:0, n:0};
 
 function enqueue(move, dur, tag){
   if (tag !== 'solve') cancelSolve();
-  if (tag === 'user' || tag === 'hint') hideHint();
+  if (tag === 'user' || tag === 'hint') hideToast();
   queue.push({move, dur, tag});
 }
 function startMove(job){
@@ -99,14 +99,14 @@ function finishMove(){
   for (const g of members){ cubeGroup.attach(g); g.position.round(); snapQuat(g.quaternion); }
   pivot.rotation.set(0,0,0);
   L.applyMove(state, move); rebuildGrid();
-  history.push(L.moveName(move)); $('log').textContent = history.slice(-40).join(' ');
+  history.push(L.moveName(move));
   current = null;
   if (tag === 'solve') renderSolution();
   if (game.active){
-    if (tag === 'scramble' && !queue.length){ game.t0 = performance.now(); status('Go! Solve the cube.'); }
+    if (tag === 'scramble' && !queue.length){ game.t0 = performance.now(); toast('Go! Drag a sticker to turn a layer. 💡 Hint if you get stuck.', 4000); }
     if (tag === 'user' || tag === 'hint'){ game.moves++; if (tag==='hint') game.hints++; updateHud(); if (L.isSolved(state) && !queue.length) win(); }
-    if (tag === 'solve'){ game.active = false; status('Challenge ended: solved by the helper.'); }
-  } else if (!queue.length && !solveRun && L.isSolved(state) && history.length) status('Solved!');
+    if (tag === 'solve'){ endGame(); toast('The helper is solving it. Tap Play for a new challenge.', 3000); }
+  } else if (!queue.length && !solveRun && L.isSolved(state) && history.length) toast('✨ Solved!', 2500);
 }
 const ease = t => t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
 
@@ -132,7 +132,16 @@ function tick(now){
   controls.update();
   renderer.render(scene, camera);
 }
-function resize(){ renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+function resize(){
+  renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  // fit the cube (diagonal ~5.2) into the band between the top bar (~70px) and the bottom bar (~150px)
+  const halfFov = Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  const usable = Math.max(0.35, (innerHeight - 220)/innerHeight);
+  const r = Math.max(8, 3.1/(halfFov*camera.aspect), 3.1/(halfFov*usable));
+  controls.maxDistance = r + 6;
+  controls.target.set(0, -(40/innerHeight)*2*r*halfFov, 0); // band center sits ~40px above screen center
+  HOME.setLength(r); if (!camTween) camera.position.setLength(r);
+}
 addEventListener('resize', resize); resize(); requestAnimationFrame(tick);
 
 // view buttons: rotate camera 90° around the cube, tilt, or go home
@@ -160,9 +169,10 @@ canvas.addEventListener('pointerdown', e => {
   const ai = [0,1,2].reduce((b,i) => Math.abs(n.getComponent(i)) > Math.abs(n.getComponent(b)) ? i : b, 0);
   const N = [0,0,0]; N[ai] = Math.sign(n.getComponent(ai));
   drag = {g, N, ai, x:e.clientX, y:e.clientY, point:hit.point.clone()};
-  controls.enabled = false;
+  controls.enabled = false; controls.autoRotate = false;
   e.stopImmediatePropagation();
 }, {capture:true});
+canvas.addEventListener('pointerdown', () => { controls.autoRotate = false; });
 
 addEventListener('pointermove', e => {
   if (!drag) return;
@@ -190,134 +200,165 @@ function endDrag(){ drag=null; controls.enabled=true; }
 
 // --- UI ---
 const fmt = ms => { const s=Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
-function status(msg){ $('status').innerHTML = msg; }
+let toastTimer = 0;
+function toast(html, ms){
+  const t = $('toast'); t.innerHTML = html; t.hidden = false; clearTimeout(toastTimer);
+  if (ms) toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+}
+const hideToast = () => { $('toast').hidden = true; clearTimeout(toastTimer); };
 function updateHud(){ $('hMoves').textContent = game.moves; $('hHints').textContent = game.hints; if (!game.t0) $('hTime').textContent = '0:00'; }
+const speed = () => +$('speed').value;
+
+// sheet (drawer) with two panes
+function openSheet(pane){
+  $('sheet').hidden = false;
+  $('paneMoves').hidden = pane !== 'moves'; $('paneExplain').hidden = pane !== 'explain';
+  $('sheetTitle').textContent = pane === 'moves' ? 'Turn a face' : 'Solution, step by step';
+  $('movesBtn').classList.toggle('on', pane === 'moves'); $('explain').classList.toggle('on', pane === 'explain');
+}
+function closeSheet(){ $('sheet').hidden = true; $('movesBtn').classList.remove('on'); $('explain').classList.remove('on'); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => { closeSheet(); b.closest('dialog')?.close(); });
+$('movesBtn').onclick = () => ($('sheet').hidden || $('paneMoves').hidden) ? openSheet('moves') : closeSheet();
+
 for (const f of 'UDLRFB') for (const s of ['', "'"]){
   const b = document.createElement('button'); b.textContent = f+s;
-  b.onclick = () => enqueue(L.parseToken(f+s), +$('speed').value, 'user');
+  b.onclick = () => enqueue(L.parseToken(f+s), speed(), 'user');
   $('moves').appendChild(b);
 }
 function resetCube(){
-  queue = []; if (current) finishMove(); cancelSolve(); hideHint();
+  queue = []; if (current) finishMove(); cancelSolve(); hideToast();
   const fresh = L.solvedState();
   state.forEach((c,i) => Object.assign(c, fresh[i]));
   cubies.forEach((g,i) => { g.position.set(...state[i].p); g.quaternion.identity(); });
-  rebuildGrid(); history.length = 0; $('log').textContent = '';
+  rebuildGrid(); history.length = 0;
 }
 function scramble(n){
-  const toks = L.randomScramble(n);
-  for (const t of toks) enqueue(L.parseToken(t), 110, 'scramble');
-  status('Scramble: ' + toks.join(' '));
+  for (const t of L.randomScramble(n)) enqueue(L.parseToken(t), 100, 'scramble');
 }
-$('scramble').onclick = () => { game.active = false; scramble(20); };
-$('reset').onclick = () => { game.active = false; resetCube(); updateHud(); status('Reset.'); };
+$('reset').onclick = () => { endGame(); resetCube(); updateHud(); toast('Cube reset. Tap ▶ Play for a challenge.', 2500); };
 
-// --- challenge ---
-function startGame(n){
-  resetCube();
-  Object.assign(game, {active:true, t0:null, moves:0, hints:0, n});
-  updateHud(); scramble(n); close('startDlg');
-  status('Scrambling…');
+// --- challenge: one tap to play ---
+const dlg = {
+  open: id => { const d=$(id); if (!d.open) (d.showModal ? d.showModal() : d.setAttribute('open','')); },
+  close: id => { const d=$(id); d.close ? d.close() : d.removeAttribute('open'); },
+};
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) dlg.close(d.id); }));
+const difficulty = () => +document.querySelector('.seg .on').dataset.n;
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  if (game.active) startGame();
+});
+function startGame(){
+  resetCube(); closeSheet();
+  Object.assign(game, {active:true, t0:null, moves:0, hints:0, n:difficulty()});
+  updateHud(); $('stats').hidden = false; $('play').textContent = '↻ New game';
+  controls.autoRotate = false;
+  camTween = {a:new THREE.Spherical().setFromVector3(camera.position), b:new THREE.Spherical().setFromVector3(HOME), t0:performance.now()};
+  scramble(game.n);
 }
+function endGame(){ game.active = false; $('play').textContent = '▶ Play'; }
+$('play').onclick = startGame;
+$('helpBtn').onclick = () => dlg.open('helpDlg');
+
 function win(){
-  game.active = false;
-  const ms = performance.now()-game.t0;
-  $('winText').textContent = game.hints ? `You solved a ${game.n}-move scramble with a little help.` : `You solved a ${game.n}-move scramble on your own!`;
-  $('winStats').innerHTML = [['Time', fmt(ms)], ['Moves', game.moves], ['Hints used', game.hints], ['Scramble length', game.n]]
-    .map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
-  open('winDlg');
+  const ms = performance.now()-game.t0; endGame();
+  const label = {5:'easy', 12:'medium', 20:'hard'}[game.n] || game.n+'-move';
+  const hints = game.hints ? `${game.hints} hint${game.hints>1?'s':''}` : '';
+  $('winTitle').textContent = game.hints ? 'Solved!' : 'Flawless!';
+  $('winText').textContent = game.hints ? `You cracked the ${label} scramble with ${hints}.` : `You cracked the ${label} scramble all by yourself!`;
+  $('winStats').innerHTML = [[fmt(ms),'time'],[game.moves,'moves'],[game.hints,'hints']].map(([v,k]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
+  $('winShare').textContent = 'Share result';
+  $('winShare').onclick = async () => {
+    const msg = `🧩 I solved a ${label} Rubik's Cube scramble in ${fmt(ms)} with ${game.moves} moves${hints ? ' and '+hints : ''}. Can you beat it?`;
+    const url = location.href.split('?')[0];
+    try {
+      if (navigator.share) await navigator.share({title:"Rubik's Cube Challenge", text:msg, url});
+      else { await navigator.clipboard.writeText(`${msg} ${url}`); $('winShare').textContent = 'Copied!'; }
+    } catch { /* user cancelled the share sheet */ }
+  };
+  confetti(); dlg.open('winDlg');
 }
-// <dialog> with a fallback for browsers without showModal
-const open = id => { const d=$(id); if (d.open) return; d.showModal ? d.showModal() : d.setAttribute('open',''); };
-const close = id => { const d=$(id); d.close ? d.close() : d.removeAttribute('open'); };
-document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d) close(d.id); })); // click backdrop closes
-$('startDlg').querySelectorAll('[data-n]').forEach(b => b.onclick = () => startGame(+b.dataset.n));
-$('freePlay').onclick = () => { close('startDlg'); status('Free play. Scramble the cube, then use Hint / Explain / Solve all.'); };
-$('startHelp').onclick = () => open('helpDlg');
-$('helpBtn').onclick = () => open('helpDlg');
-$('newGame').onclick = () => open('startDlg');
-$('winAgain').onclick = () => { close('winDlg'); open('startDlg'); };
-$('winClose').onclick = () => close('winDlg');
-$('step').title = $('pause').title = 'Press Explain or Solve all first';
-$('applyHint').title = 'Press Hint first';
+$('winAgain').onclick = () => { dlg.close('winDlg'); startGame(); };
+function confetti(){
+  const colors = Object.values(L.COLORS).map(c => '#'+c.toString(16).padStart(6,'0'));
+  for (let i=0;i<90;i++){
+    const d = document.createElement('i'); d.className = 'confetti';
+    d.style.cssText = `left:${Math.random()*100}vw;background:${colors[i%colors.length]};animation-duration:${1.8+Math.random()*1.6}s;animation-delay:${Math.random()*.6}s`;
+    document.body.appendChild(d); setTimeout(() => d.remove(), 4000);
+  }
+}
 
 // --- help: hint / solve / explain ---
 function virtualState(){ const s=L.clone(state); if (current) L.applyMove(s,current.move); for (const j of queue) L.applyMove(s,j.move); return s; }
-let hintTok = null;
-function hideHint(){ hintTok = null; $('hint').style.display = 'none'; $('applyHint').disabled = true; }
+function plan(){
+  const s = virtualState();
+  if (L.isSolved(s)){ toast('The cube is already solved. Tap <b>▶ Play</b> to scramble it.', 3000); return null; }
+  try { return L.solveDetailed(s); } catch (err){ toast(err.message, 3000); return null; }
+}
 $('hintBtn').onclick = () => {
-  const s = virtualState();
-  if (L.isSolved(s)){ $('hint').innerHTML = 'The cube is already solved. Press <b>Scramble</b> or <b>New challenge</b> to get something to solve.'; $('hint').style.display='block'; return; }
-  let r; try { r = L.solveDetailed(s); } catch (err){ status(err.message); return; }
-  const stage = r.stages.find(st => st.moves.length);
-  hintTok = stage.moves[0];
-  const total = r.tokens.length;
-  $('hint').innerHTML = `<b class="mv">${hintTok}</b> <b>${stage.name}</b> · ${stage.moves.length} move${stage.moves.length>1?'s':''} left in this stage, ${total} in total.<br><span style="color:var(--muted)">${stage.desc}</span>`;
-  $('hint').style.display = 'block'; $('applyHint').disabled = false;
+  const r = plan(); if (!r) return;
+  const stage = r.stages.find(st => st.moves.length), tok = stage.moves[0];
+  toast(`<span class="mv">${tok}</span><b>${stage.name}</b> · ${r.tokens.length} moves to go<div class="muted">${stage.desc}</div>
+    <div class="row"><button id="doHint" class="cta small">Do it for me</button><button id="closeHint">Got it</button></div>`);
+  $('doHint').onclick = () => enqueue(L.parseToken(tok), speed(), 'hint');
+  $('closeHint').onclick = hideToast;
 };
-$('applyHint').onclick = () => { if (hintTok) enqueue(L.parseToken(hintTok), +$('speed').value, 'hint'); };
-
-function notice(msg){
-  status(msg);
-  $('sol').innerHTML = `<p class="stage" style="font-size:12px;background:#fff8d6">${msg}</p>`;
-}
-function computeSolution(){
-  const s = virtualState();
-  if (L.isSolved(s)){ notice('The cube is already solved. Press <b>Scramble</b> or <b>New challenge</b> first, then Explain / Hint / Solve all.'); return null; }
-  try { return L.solveDetailed(s); } catch (err){ notice(err.message); return null; }
-}
 $('explain').onclick = () => {
-  const r = computeSolution();
-  if (!r){ // solved cube: still show the method overview
-    if (L.isSolved(virtualState())) $('sol').innerHTML += L.STAGES.map(([n,d],i)=>`<div class="stage"><h3>${i+1}. ${n}</h3><p>${d}</p></div>`).join('');
-    return;
+  if (!$('sheet').hidden && !$('paneExplain').hidden){ closeSheet(); return; }
+  openSheet('explain');
+  if (solveRun){ renderSolution(); return; }
+  const r = plan();
+  if (!r){
+    $('sol').innerHTML = '<div class="stage notice">Scramble the cube first (▶ Play), then come back here to see the solution.</div>'
+      + L.STAGES.map(([n,d],i) => `<div class="stage"><h4>${i+1}. ${n}</h4><p>${d}</p></div>`).join('');
+    setPlaybar(false); return;
   }
-  cancelSolve(); solveRun = {tokens:r.tokens, stages:r.stages, i:0, playing:false, preview:true};
-  renderSolution(); status(`Solution: ${r.tokens.length} moves in ${r.stages.filter(s=>s.moves.length).length} stages. Press Solve all or Step to watch it.`);
-  $('step').disabled = false; $('pause').disabled = false; $('pause').textContent = 'Play';
+  solveRun = {tokens:r.tokens, stages:r.stages, i:0, playing:false}; renderSolution(); setPlaybar(true);
 };
 $('solve').onclick = () => {
-  if (solveRun && solveRun.preview){ solveRun.preview=false; solveRun.playing=true; $('pause').textContent='Pause'; return; }
-  const r = computeSolution(); if (!r) return;
+  if (solveRun){ solveRun.playing = true; $('pause').textContent = 'Pause'; openSheet('explain'); renderSolution(); return; }
+  const r = plan(); if (!r) return;
   solveRun = {tokens:r.tokens, stages:r.stages, i:0, playing:true};
-  $('step').disabled = false; $('pause').disabled = false; $('pause').textContent = 'Pause';
-  status(`Solution: ${r.tokens.length} moves. Playing…`);
-  renderSolution();
+  openSheet('explain'); renderSolution(); setPlaybar(true);
 };
+$('playAll').onclick = $('solve').onclick;
+function setPlaybar(on){ $('step').disabled = $('pause').disabled = !on; }
 function stepSolve(){
   if (!solveRun || solveRun.i >= solveRun.tokens.length) return;
-  solveRun.preview = false;
-  queue.push({move:L.parseToken(solveRun.tokens[solveRun.i++]), dur:+$('speed').value, tag:'solve'});
+  queue.push({move:L.parseToken(solveRun.tokens[solveRun.i++]), dur:speed(), tag:'solve'});
   renderSolution();
 }
 $('step').onclick = () => { if (solveRun){ solveRun.playing=false; $('pause').textContent='Play'; if (!current && !queue.length) stepSolve(); } };
-$('pause').onclick = () => { if (solveRun){ solveRun.preview=false; solveRun.playing=!solveRun.playing; $('pause').textContent = solveRun.playing ? 'Pause' : 'Play'; } };
+$('pause').onclick = () => { if (solveRun){ solveRun.playing=!solveRun.playing; $('pause').textContent = solveRun.playing ? 'Pause' : 'Play'; } };
 function renderSolution(){
   const el = $('sol'); el.innerHTML = '';
   if (!solveRun) return;
   const doneCount = solveRun.i - (current && current.tag==='solve' ? 1 : 0) - queue.filter(j=>j.tag==='solve').length;
+  const stageCount = solveRun.stages.filter(s=>s.moves.length).length;
+  el.insertAdjacentHTML('beforeend', `<p class="tip">${solveRun.tokens.length} moves in ${stageCount} stages, beginner layer-by-layer method. ${doneCount ? doneCount+' done.' : 'Press ▶ Play all or Step.'}</p>`);
   let idx = 0, n = 0;
   for (const st of solveRun.stages){
     if (!st.moves.length) continue;
     n++;
-    const first = idx, last = idx + st.moves.length;
+    const first = idx, last = idx + st.moves.length, active = doneCount >= first && doneCount < last;
     const div = document.createElement('div');
-    div.className = 'stage' + (doneCount >= first && doneCount < last ? ' active' : '');
-    div.innerHTML = `<h3>${n}. ${st.name} <small>${st.moves.length} moves${doneCount>=last?' ✓':''}</small></h3><p>${st.desc}</p><div class="chips"></div>`;
+    div.className = 'stage' + (active ? ' active' : '');
+    div.innerHTML = `<h4>${n}. ${st.name} <small>${doneCount>=last ? '✓ done' : st.moves.length+' moves'}</small></h4><p>${st.desc}</p><div class="chips"></div>`;
     const chips = div.querySelector('.chips');
     st.moves.forEach(t => {
       const c = document.createElement('span');
       c.className = 'chip' + (idx<doneCount ? ' done' : idx===doneCount ? ' now' : ''); c.textContent = t; chips.appendChild(c); idx++;
     });
     el.appendChild(div);
+    if (active && doneCount) div.scrollIntoView({block:'nearest', behavior:'smooth'});
   }
-  if (doneCount >= solveRun.tokens.length){ status('Solved in ' + solveRun.tokens.length + ' moves.'); cancelSolve(false); }
+  if (doneCount >= solveRun.tokens.length){ toast(`✨ Solved in ${solveRun.tokens.length} moves.`, 3000); cancelSolve(false); }
 }
 function cancelSolve(clear=true){
   if (!solveRun) return;
-  solveRun = null; $('step').disabled = true; $('pause').disabled = true;
+  solveRun = null; setPlaybar(false);
   if (clear) $('sol').innerHTML = '';
 }
 
-open('startDlg');
+toast('Tap <b>▶ Play</b> to scramble the cube, then drag a sticker to turn a layer.', 6000);
 if (location.search.includes('test')) console.log('selfTest', L.selfTest(20)); // eslint-disable-line no-console

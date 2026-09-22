@@ -1,17 +1,29 @@
-# 3D Rubik's Cube
+# 3D Rubik's Cube Challenge
 
-Interactive, playable 3D Rubik's Cube in the browser. Scramble it, solve it by hand with drag or buttons, ask for a hint, or watch a layer-by-layer solution explained stage by stage.
+[![Deploy](https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application/actions/workflows/deploy.yml/badge.svg)](https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application/actions/workflows/deploy.yml)
+[![Live demo](https://img.shields.io/badge/play-live%20demo-5b5bff?logo=googlechrome&logoColor=white)](https://outofamine.github.io/3D-Rubik-s-Cube-web-application/)
+[![GitHub stars](https://img.shields.io/github/stars/OutOfAmine/3D-Rubik-s-Cube-web-application?style=flat&logo=github)](https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/OutOfAmine/3D-Rubik-s-Cube-web-application?style=flat&logo=github)](https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application/network/members)
+[![Last commit](https://img.shields.io/github/last-commit/OutOfAmine/3D-Rubik-s-Cube-web-application)](https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application/commits/main)
+[![Repo size](https://img.shields.io/github/repo-size/OutOfAmine/3D-Rubik-s-Cube-web-application)](https://github.com/OutOfAmine/3D-Rubik-s-Cube-web-application)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Visitors](https://komarev.com/ghpvc/?username=OutOfAmine&repo=3D-Rubik-s-Cube-web-application&label=visitors&color=ff6a3d)
 
-**Live demo:** https://outofamine.github.io/3D-Rubik-s-Cube-web-application/
+Play a 3D Rubik's Cube in your browser. One tap scrambles it, then solve it by hand with drag controls, ask for a hint, or watch a layer-by-layer solution explained stage by stage. Free, no install, works on phone and desktop.
+
+**▶ Play now:** https://outofamine.github.io/3D-Rubik-s-Cube-web-application/
+
+[![Rubik's Cube Challenge screenshot](docs/screenshot.png)](https://outofamine.github.io/3D-Rubik-s-Cube-web-application/)
 
 ## Features
 
-- Realistic 3×3×3 cube rendered with Three.js: rounded stickers, plastic sheen, soft shadows, orbit camera.
-- Turn layers by dragging a sticker, with the on-screen buttons, or in Singmaster notation (`U D L R F B`, `'`, `2`).
-- Challenge mode with timer, move counter and hint counter, three scramble lengths.
-- Hint: shows the next move and the current stage of the beginner method.
-- Solve all / Step / Pause with a speed slider; every move is animated and snapped back to the grid.
-- Explain: the full solution split into 7 stages (white cross, white corners, middle edges, yellow cross, yellow face, corner permutation, edge permutation), each with a plain-language description.
+- One tap to play: pick Easy / Medium / Hard, hit **Play**, the cube scrambles and the timer starts.
+- Realistic 3×3×3 cube rendered with Three.js: rounded stickers, plastic sheen, soft shadows, orbit camera, idle spin.
+- Turn layers by dragging a sticker or from the **Moves** drawer (Singmaster notation `U D L R F B`, `'`, `2`).
+- **Hint** shows the next move and the current stage of the beginner method, with a "Do it for me" button.
+- **Solve** plays the whole solution; **Explain** lists it in 7 stages (white cross, white corners, middle edges, yellow cross, yellow face, corner permutation, edge permutation) with Play all / Step / Pause and a speed slider.
+- Win screen with time, moves, hints, confetti and a share button (Web Share API, clipboard fallback).
+- Mobile-first layout: thumb-zone action bar, bottom sheet on phones, side panel on desktop, safe-area aware.
 
 ## Run locally
 
@@ -53,6 +65,16 @@ test/cube-logic.test.js  node:test suite
 ## Deploy
 
 Pushing to `main` runs the tests and publishes the site to GitHub Pages through GitHub Actions. The repository's Pages source must be set to "GitHub Actions".
+
+## Contributing
+
+`main` is protected: every change goes through a pull request, needs the test workflow to pass and a review from the maintainer. Dependabot opens PRs for GitHub Actions updates weekly.
+
+```bash
+git checkout -b my-change
+npm test
+git push -u origin my-change   # then open a PR
+```
 
 ## License
 
