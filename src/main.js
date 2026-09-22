@@ -77,7 +77,7 @@ const history = [];
 const game = {active:false, t0:null, moves:0, hints:0, n:0};
 
 function enqueue(move, dur, tag){
-  if (tag !== 'solve') cancelSolve();
+  if (tag === 'user' || tag === 'scramble') cancelSolve(); // a manual turn invalidates the plan; hints follow it
   if (tag === 'user' || tag === 'hint') hideToast();
   queue.push({move, dur, tag});
 }
@@ -101,7 +101,7 @@ function finishMove(){
   L.applyMove(state, move); rebuildGrid();
   history.push(L.moveName(move));
   current = null;
-  if (tag === 'solve') renderSolution();
+  if (tag === 'solve' || tag === 'hint') renderSolution();
   if (game.active){
     if (tag === 'scramble' && !queue.length){ game.t0 = performance.now(); toast('Go! Drag a sticker to turn a layer. 💡 Hint if you get stuck.', 4000); }
     if (tag === 'user' || tag === 'hint'){ game.moves++; if (tag==='hint') game.hints++; updateHud(); if (L.isSolved(state) && !queue.length) win(); }
@@ -295,12 +295,23 @@ function plan(){
   if (L.isSolved(s)){ toast('The cube is already solved. Tap <b>▶ Play</b> to scramble it.', 3000); return null; }
   try { return L.solveDetailed(s); } catch (err){ toast(err.message, 3000); return null; }
 }
+// Hint = next move of the committed plan (shared with Explain), never recomputed between hints:
+// recomputing from the new state often starts by undoing the previous hint.
+function ensurePlan(){
+  if (solveRun) return solveRun;
+  const r = plan(); if (!r) return null;
+  solveRun = {tokens:r.tokens, stages:r.stages, i:0, playing:false}; setPlaybar(true);
+  if (!$('paneExplain').hidden && !$('sheet').hidden) renderSolution();
+  return solveRun;
+}
 $('hintBtn').onclick = () => {
-  const r = plan(); if (!r) return;
-  const stage = r.stages.find(st => st.moves.length), tok = stage.moves[0];
-  toast(`<span class="mv">${tok}</span><b>${stage.name}</b> · ${r.tokens.length} moves to go<div class="muted">${stage.desc}</div>
+  const run = ensurePlan(); if (!run || run.i >= run.tokens.length) return;
+  const idx = run.i, tok = run.tokens[idx];
+  let acc = 0, stage = run.stages[0];
+  for (const st of run.stages){ if (idx < acc + st.moves.length){ stage = st; break; } acc += st.moves.length; }
+  toast(`<span class="mv">${tok}</span><b>${stage.name}</b> · ${run.tokens.length - idx} moves to go<div class="muted">${stage.desc}</div>
     <div class="row"><button id="doHint" class="cta small">Do it for me</button><button id="closeHint">Got it</button></div>`);
-  $('doHint').onclick = () => enqueue(L.parseToken(tok), speed(), 'hint');
+  $('doHint').onclick = () => { queue.push({move:L.parseToken(tok), dur:speed(), tag:'hint'}); run.i++; hideToast(); renderSolution(); };
   $('closeHint').onclick = hideToast;
 };
 $('explain').onclick = () => {
@@ -333,7 +344,8 @@ $('pause').onclick = () => { if (solveRun){ solveRun.playing=!solveRun.playing; 
 function renderSolution(){
   const el = $('sol'); el.innerHTML = '';
   if (!solveRun) return;
-  const doneCount = solveRun.i - (current && current.tag==='solve' ? 1 : 0) - queue.filter(j=>j.tag==='solve').length;
+  const planned = j => j.tag === 'solve' || j.tag === 'hint';
+  const doneCount = solveRun.i - (current && planned(current) ? 1 : 0) - queue.filter(planned).length;
   const stageCount = solveRun.stages.filter(s=>s.moves.length).length;
   el.insertAdjacentHTML('beforeend', `<p class="tip">${solveRun.tokens.length} moves in ${stageCount} stages, beginner layer-by-layer method. ${doneCount ? doneCount+' done.' : 'Press ▶ Play all or Step.'}</p>`);
   let idx = 0, n = 0;
